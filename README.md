@@ -29,7 +29,7 @@ make sync
 make sync-openclaw
 
 # 同步特定机器实例
-make sync-instance laptop
+make sync-instance <机器名>
 
 # 新机器初始化
 make init INSTANCE_NAME=<机器名>
@@ -39,16 +39,103 @@ make init INSTANCE_NAME=<机器名>
 
 ```
 openclaw-hub/
-├── docs/              # 公共教程/文档
-├── standards/         # 统一格式标准层
-│   ├── schemas/       # 格式定义
-│   ├── templates/     # 模板
-│   ├── common/        # 通用规范
-│   └── agents/        # Agent 级别配置
-├── adapters/          # 平台适配转化层
-├── shared/            # 公共工作区（项目协作）
-├── instances/         # 各机器实例私有配置
-└── scripts/           # 工具脚本
+├── docs/                  # 公共教程/文档
+│   └── guides/
+│       ├── agent-workflow-guide.md    # 通用 Agent 工作流
+│       ├── install-superpowers.md      # Coding Agent Superpowers 安装
+│       └── ...
+│
+├── standards/             # 统一格式标准层 ★
+│   ├── schemas/           # 格式定义（YAML Schema）
+│   ├── templates/         # 快速创建模板
+│   ├── common/            # 所有 Agent 通用规范
+│   │   ├── WORKFLOW.md    # 通用 5 阶段工作流骨架
+│   │   ├── LANGUAGE.md    # 语言/格式规范
+│   │   └── DOCUMENTATION.md # 文档编写习惯
+│   │
+│   ├── roles/             # 按职能分组的规范 ★
+│   │   ├── coding/        # 代码类 Agent
+│   │   │   ├── WORKFLOW.md  # TDD、git-worktree、debug
+│   │   │   ├── GIT.md       # Git 工作流
+│   │   │   └── QUALITY.md   # 代码质量标准
+│   │   ├── analysis/      # 分析类 Agent
+│   │   │   └── WORKFLOW.md  # 数据采集、清洗、建模、验证
+│   │   ├── research/      # 信息收集类 Agent（占位）
+│   │   └── coordination/  # 协调类 Agent（占位）
+│   │
+│   └── agents/            # 具体 Agent 个性化配置
+│       ├── liuyun/        # 闲云（coding）
+│       │   ├── agent.yaml   # 基础配置（含 roles 字段）
+│       │   ├── soul.md      # 性格/信念
+│       │   └── user.yaml    # 用户配置
+│       └── ningguang/     # 凝光（analysis）
+│           └── ...
+│
+├── adapters/              # 平台适配转化层
+│   ├── openclaw/          # OpenClaw 适配
+│   ├── deerflow/          # DeerFlow 占位
+│   └── claude-code/       # Claude Code 占位
+│
+├── shared/                # 公共工作区（项目协作）
+│   └── projects/
+│
+├── instances/             # 各机器实例私有配置
+│   └── <机器名>/
+│       └── <平台>/
+│           └── agents/
+│               └── <agent>/
+│
+└── scripts/               # 工具脚本
+    ├── sync.py            # 核心同步脚本 ★
+    ├── validate.py        # 配置验证
+    ├── deploy.py          # 部署脚本
+    └── init-instance.py   # 新机器初始化
+```
+
+## 三层配置体系
+
+配置合并优先级：**`instances > agents > roles > common`**
+
+| 层级 | 目录 | 作用 | 示例 |
+|------|------|------|------|
+| **Common** | `standards/common/` | 所有 Agent 通用 | 语言规范、基础工作流 |
+| **Roles** | `standards/roles/<type>/` | 某类 Agent 通用 | Coding 的 TDD、Analysis 的建模 |
+| **Agents** | `standards/agents/<name>/` | 某个 Agent 专属 | 闲云的性格、凝光的投资偏好 |
+| **Instances** | `instances/<机器>/` | 机器级覆盖 | 特定机器的配置差异 |
+
+### Agent 配置示例（agent.yaml）
+
+```yaml
+name: 闲云
+creature: 璃月的仙人，寄居代码世界的一缕闲云
+emoji: 🌙
+roles:                    # ← 新增字段，决定继承哪些 roles/
+  - coding
+capabilities:
+  - coding
+  - feishu
+  - git
+  - web_search
+tools:
+  - exec
+  - read
+  - write
+  - edit
+  - web_search
+  - kimi_search
+  - sessions_spawn
+  - feishu_im_user_message
+  - feishu_calendar_event
+  - feishu_task_task
+platform_config:
+  openclaw:
+    model: kimi-coding/k2p5
+    channel: feishu
+metadata:
+  created_at: "2026-04-22T23:52:00+08:00"
+  updated_at: "2026-04-23T01:00:00+08:00"
+  author: 车子
+  version: "1.0.0"
 ```
 
 ## 核心约定
@@ -56,10 +143,10 @@ openclaw-hub/
 ### 配置优先级
 
 ```
-instances > standards
+instances > agents > roles > common
 ```
 
-当 `instances/<机器>/<平台>/agents/<agent>/` 中存在同名文件时，优先使用实例私有配置。
+当多层存在同名文件时，按优先级覆盖。
 
 ### 自动生成标记
 
@@ -77,15 +164,29 @@ instances > standards
 
 ### 添加新 Agent
 
-1. 在 `standards/agents/` 下创建目录并编写统一配置
-2. 运行 `make sync` 生成各平台适配文件
-3. 如需特定机器覆盖，在 `instances/<机器>/<平台>/agents/<agent>/` 下创建文件
+1. 在 `standards/agents/` 下创建目录
+2. 编写 `agent.yaml`（指定 `roles`）
+3. 编写 `soul.md`（性格/信念）和 `user.yaml`（用户配置）
+4. 运行 `make sync` 生成各平台适配文件
+5. 如需特定机器覆盖，在 `instances/<机器>/<平台>/agents/<agent>/` 下创建文件
+
+### 添加新角色类型
+
+1. 在 `standards/roles/` 下创建目录
+2. 编写该角色的通用规范（`WORKFLOW.md`、`QUALITY.md` 等）
+3. 在 `standards/schemas/` 更新相关 schema
+4. 更新 `docs/guides/agent-workflow-guide.md`
 
 ### 添加新平台适配
 
 1. 在 `adapters/` 下创建平台目录
 2. 实现 `adapter.py` 脚本
 3. 在 `Makefile` 添加同步入口
+
+## 文档
+
+- [Agent 工作流指南](docs/guides/agent-workflow-guide.md) — 通用工作流 + 按职能执行方式
+- [Coding Agent Superpowers 安装](docs/guides/install-superpowers.md) — Coding Agent 的 Superpowers 详细安装
 
 ## 许可证
 
