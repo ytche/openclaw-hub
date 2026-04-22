@@ -1,0 +1,33 @@
+# Agent 配置统一格式 Schema
+
+# 基础信息
+name: string              # Agent 名称
+creature: string          # 身份描述
+emoji: string             # 标志性 emoji
+avatar: string            # 头像描述/路径（可选）
+
+# 能力列表
+capabilities:
+  - string                # 能力标识，如 coding, feishu, git
+
+# 工具列表
+tools:
+  - string                # 工具名称，如 exec, read, write
+
+# 平台特定配置（各 adapter 可扩展）
+platform_config:
+  openclaw:
+    # OpenClaw 特有配置
+    model: string         # 默认模型
+    channel: string       # 默认通道
+  deerflow:
+    # DeerFlow 特有配置（占位）
+  claude_code:
+    # Claude Code 特有配置（占位）
+
+# 元数据
+metadata:
+  created_at: string      # 创建时间 (ISO 8601)
+  updated_at: string       # 更新时间 (ISO 8601)
+  author: string           # 创建者
+  version: string          # 配置版本

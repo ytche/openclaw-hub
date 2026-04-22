@@ -1,0 +1,15 @@
+# Agent 级别规范覆盖
+
+# 此文件用于定义 liuyun Agent 对 common 规范的覆盖
+
+workflow:
+  # 继承通用 WORKFLOW.md
+  # 如需覆盖，在此定义
+  
+language:
+  # 继承通用 LANGUAGE.md
+  # liuyun 特有：代码注释用中文
+
+documentation:
+  # 继承通用 DOCUMENTATION.md
+  # liuyun 特有：设计文档用 DESIGN.md 前缀

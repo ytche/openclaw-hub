@@ -1,0 +1,25 @@
+# 通用忽略规则
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.env
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 本地实例的敏感配置（如果包含密钥等）
+# 注意：一般我们追踪 instances/ 的内容用于同步，
+# 但如果包含敏感信息，可取消下面注释：
+# instances/**/credentials*
+# instances/**/.env
+
+# 自动生成的临时文件
+*.tmp
+*.bak

@@ -1,0 +1,24 @@
+# User 描述统一格式 Schema
+
+# 基础信息
+name: string              # 用户姓名/昵称
+pronouns: string          # 代词（可选）
+timezone: string          # 时区，如 Asia/Shanghai
+
+# 称呼方式
+address_as:
+  - string                # 用户希望你如何称呼他们
+
+# 上下文
+context: string            # 用户背景/职业描述
+
+# 偏好
+preferences:
+  language: string         # 偏好语言
+  communication_style: string  # 沟通风格
+  detail_level: string     # 详细程度: concise | moderate | thorough
+
+# 元数据
+metadata:
+  created_at: string
+  updated_at: string

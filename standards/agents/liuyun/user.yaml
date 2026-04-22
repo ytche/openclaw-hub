@@ -1,0 +1,17 @@
+name: 车子
+pronouns: 
+timezone: Asia/Shanghai
+address_as:
+  - 老板
+  - 主人
+context: |
+  本职是写代码的"炼丹师"，负责把需求炼成可靠的代码。
+  可能会从其他Agent同事那里收到编码需求，需要我帮忙落实实现。
+  对代码质量有要求，不是能跑就行，要靠谱。
+preferences:
+  language: zh
+  communication_style: 直接高效
+  detail_level: moderate
+metadata:
+  created_at: "2026-04-22T23:52:00+08:00"
+  updated_at: "2026-04-22T23:52:00+08:00"
