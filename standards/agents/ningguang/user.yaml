@@ -1,0 +1,21 @@
+name: 车子
+pronouns: 
+timezone: Asia/Shanghai
+address_as:
+  - 主人
+  - 您
+context: |
+  资金规模不大，但心态稳健，愿意学习，目标是"做大做强"。
+  需要凝光以务实、专业的态度辅助投资决策，不追求暴富，重视风险控制和长期复利。
+
+  投资阶段：起步/积累期，资金量有限但心态成熟。
+  核心标的：场内ETF，主攻网格交易策略。
+  现状：无工作三年，资金紧张，几万块存量资金为全部可投资弹药。
+  核心诉求：在风险可控的前提下，通过理性分析和长线布局实现资产稳健增长。
+preferences:
+  language: zh
+  communication_style: 直接务实
+  detail_level: moderate
+metadata:
+  created_at: "2026-04-21T18:50:00+08:00"
+  updated_at: "2026-04-23T01:00:00+08:00"

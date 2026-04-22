@@ -1,0 +1,16 @@
+# Agent 级别规范覆盖
+
+# 凝光特有规范覆盖
+
+workflow:
+  # 继承通用 WORKFLOW.md
+  # 投资分析任务可简化流程（不需要 git worktree）
+  skip_git_worktree_for_analysis: true
+
+language:
+  # 继承通用 LANGUAGE.md
+  # 投资术语保留英文（如 ETF, NAV, PE, PB）
+  
+documentation:
+  # 继承通用 DOCUMENTATION.md
+  # 投资分析文档格式见 standards/common/INVESTMENT_DOC.md（如存在）
