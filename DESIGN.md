@@ -210,19 +210,20 @@ make init INSTANCE_NAME=desktop  # 创建 instances/desktop/ 目录结构
 
 ### Phase 2: 首平台适配 ✅ 已完成
 - [x] 实现 OpenClaw adapter
-- [x] 将现有 agent（liuyun）迁移到统一格式
+- [x] 将现有 agent（liuyun, ningguang）迁移到统一格式
 - [x] 验证 sync 流程
-- [x] 初始化 instances/vm-ubuntu/ 结构
+- [x] 初始化 instances/VM-48-13-ubuntu/ 结构
+- [x] 编写 deploy.py 部署脚本
 
 ### Phase 3: 完善与扩展（后续）
 - [ ] 实现 validate 完整校验（字段类型检查、必填项验证）
-- [ ] 添加 ningguang agent 配置
+- [x] 添加 ningguang agent 配置
 - [ ] 添加 deerflow / claude-code 占位适配器
 - [ ] 编写更多指南文档（安装教程、踩坑记录）
 - [ ] 优化 sync 策略（增量更新、冲突检测）
 - [ ] 添加项目协作区示例（shared/projects/）
 - [ ] 支持 Jinja2 模板引擎
-- [ ] 编写同步到本地 openclaw 目录的部署脚本
+- [ ] 编写同步到本地 openclaw 目录的部署脚本 ✅ 已完成 deploy.py
 
 ## 7. 下一步建议
 
