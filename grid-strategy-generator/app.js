@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 绑定事件
     document.getElementById('calculateBtn').addEventListener('click', calculateAndDisplay);
     document.getElementById('exportBtn').addEventListener('click', exportToCSV);
+    document.getElementById('exportMdBtn').addEventListener('click', exportToMarkdown);
     document.getElementById('symbol').addEventListener('blur', autoDetectETF);
     
     // 默认加载512000示例
@@ -296,39 +297,84 @@ function drawPieChart(allocation) {
 }
 
 /**
- * 导出为CSV
+ * 导出为Markdown（凝光文档格式）
  */
-function exportToCSV() {
+function exportToMarkdown() {
     const symbol = document.getElementById('resSymbol').textContent;
     if (!symbol) {
         alert('请先执行计算');
         return;
     }
     
-    let csv = '档位,买入价,股数,金额,卖出触发,出股数,留利股,单笔利润\n';
+    const basePrice = document.getElementById('resBasePrice').textContent;
+    const budget = document.getElementById('resBudget').textContent;
+    const volatility = document.getElementById('resVolatility').textContent;
+    const depth = document.getElementById('resDepth').textContent;
     
-    // 小网
+    let md = `# ${symbol} 网格策略方案\n\n`;
+    md += `**生成时间:** ${new Date().toLocaleString()}\n\n`;
+    
+    md += `## 基本信息\n\n`;
+    md += `- ETF代码: ${symbol}\n`;
+    md += `- 基准价: ${basePrice}元\n`;
+    md += `- 总预算: ${budget}元\n`;
+    md += `- 波动等级: ${volatility}\n`;
+    md += `- 大网深度: ${depth}\n\n`;
+    
+    md += `## 资金分配\n\n`;
+    md += `- 小网: ${document.getElementById('capitalSmall').textContent}元\n`;
+    md += `- 中网: ${document.getElementById('capitalMedium').textContent}元\n`;
+    md += `- 大网: ${document.getElementById('capitalLarge').textContent}元\n`;
+    md += `- 总投入: ${document.getElementById('capitalTotal').textContent}元\n`;
+    md += `- 冗余资金: ${document.getElementById('capitalReserve').textContent}元\n\n`;
+    
+    md += `## 小网策略 (${document.getElementById('smallGridCount').textContent || 11}档)\n\n`;
+    md += `| 档位 | 买入价 | 股数 | 金额 | 卖出触发 | 出股数 | 留利股 | 单笔利润 |\n`;
+    md += `|------|--------|------|------|----------|--------|--------|----------|\n`;
+    
     document.querySelectorAll('#smallGridTable tr').forEach(row => {
         const cells = row.querySelectorAll('td');
-        csv += `小网${cells[0].textContent},${cells[1].textContent},${cells[2].textContent},${cells[3].textContent},${cells[4].textContent},${cells[5].textContent},${cells[6].textContent},${cells[7].textContent}\n`;
+        md += `| S${cells[0].textContent} | ${cells[1].textContent} | ${cells[2].textContent} | ${cells[3].textContent} | ${cells[4].textContent} | ${cells[5].textContent} | ${cells[6].textContent} | ${cells[7].textContent} |\n`;
     });
     
-    // 中网
+    md += `\n## 中网策略 (3档)\n\n`;
+    md += `| 档位 | 买入价 | 股数 | 金额 | 卖出触发 | 单笔利润 |\n`;
+    md += `|------|--------|------|------|----------|----------|\n`;
+    
     document.querySelectorAll('#mediumGridTable tr').forEach(row => {
         const cells = row.querySelectorAll('td');
-        csv += `中网${cells[0].textContent},${cells[1].textContent},${cells[2].textContent},${cells[3].textContent},${cells[4].textContent},${cells[5].textContent},${cells[6].textContent},${cells[7].textContent}\n`;
+        md += `| ${cells[0].textContent} | ${cells[1].textContent} | ${cells[2].textContent} | ${cells[3].textContent} | ${cells[4].textContent} | ${cells[7].textContent} |\n`;
     });
     
-    // 大网
+    md += `\n## 大网策略 (2档)\n\n`;
+    md += `| 档位 | 买入价 | 股数 | 金额 | 卖出触发 | 单笔利润 |\n`;
+    md += `|------|--------|------|------|----------|----------|\n`;
+    
     document.querySelectorAll('#largeGridTable tr').forEach(row => {
         const cells = row.querySelectorAll('td');
-        csv += `大网${cells[0].textContent},${cells[1].textContent},${cells[2].textContent},${cells[3].textContent},${cells[4].textContent},${cells[5].textContent},${cells[6].textContent},${cells[7].textContent}\n`;
+        md += `| ${cells[0].textContent} | ${cells[1].textContent} | ${cells[2].textContent} | ${cells[3].textContent} | ${cells[4].textContent} | ${cells[7].textContent} |\n`;
     });
     
+    md += `\n## 压力测试\n\n`;
+    md += `- 小网触发: ${document.getElementById('stressSmall').textContent}\n`;
+    md += `- 中网触发: ${document.getElementById('stressMedium').textContent}\n`;
+    md += `- 大网触发: ${document.getElementById('stressWorst').textContent}\n`;
+    md += `- 冗余比例: ${document.getElementById('stressReserve').textContent}\n`;
+    md += `- 测试结果: ${document.getElementById('stressPass').textContent}\n\n`;
+    
+    md += `## 收益测算\n\n`;
+    md += `- 交易利润: ${document.getElementById('returnTrading').textContent}元\n`;
+    md += `- 留利股数: ${document.getElementById('returnKeep').textContent}股\n`;
+    md += `- 留利浮盈: ${document.getElementById('returnUnrealized').textContent}元\n`;
+    md += `- 总回报: ${document.getElementById('returnTotal').textContent}元\n`;
+    md += `- 收益率: ${document.getElementById('returnROI').textContent}\n\n`;
+    
+    md += `---\n*由凝光通用网格策略框架生成*\n`;
+    
     // 下载
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${symbol}_grid_plan.csv`;
+    link.download = `${symbol}_grid_plan.md`;
     link.click();
 }
