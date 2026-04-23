@@ -5,6 +5,10 @@
  * 纯前端，无框架依赖
  */
 
+// 存储当前结果和覆盖状态
+let currentResult = null;
+let manualOverrides = {}; // { 'small_0': 1500, 'medium_1': 2000 }
+
 // 波动等级说明
 const VOLATILITY_DESC = {
     'auto': '自动检测（基于ETF代码）',
@@ -108,6 +112,9 @@ function calculateAndDisplay() {
             return;
         }
         
+        // 重置手动覆盖
+        manualOverrides = {};
+        
         // 调用计算引擎
         const result = calculateGridStrategy(params);
         
@@ -115,6 +122,8 @@ function calculateAndDisplay() {
             alert(result.error);
             return;
         }
+        
+        currentResult = result;
         
         // 显示结果
         displayResults(result);
@@ -141,84 +150,232 @@ function displayResults(result) {
         result.volatilityLevel === 'medium' ? '中波动' : '低波动';
     document.getElementById('resDepth').textContent = (result.largeGridDepth * 100).toFixed(0) + '%';
     
-    // 小网表格
-    const smallTable = document.getElementById('smallGridTable');
-    smallTable.innerHTML = '';
-    result.grids.small.forEach(tier => {
+    // 渲染三网表格
+    renderGridTable('small', result.grids.small, result.basePrice);
+    renderGridTable('medium', result.grids.medium, result.basePrice);
+    renderGridTable('large', result.grids.large, result.basePrice);
+    
+    // 更新汇总
+    updateSummary();
+}
+
+/**
+ * 渲染网格表格（带手动覆盖功能）
+ */
+function renderGridTable(gridType, tiers, basePrice) {
+    const tableBody = document.getElementById(gridType + 'GridTable');
+    tableBody.innerHTML = '';
+    
+    tiers.forEach((tier, index) => {
+        const overrideKey = `${gridType}_${index}`;
+        const isOverridden = manualOverrides.hasOwnProperty(overrideKey);
+        const shares = isOverridden ? manualOverrides[overrideKey] : tier.shares;
+        
+        // 重新计算该档数据
+        const buyPrice = tier.buyPrice;
+        const cost = buyPrice * shares;
+        
+        let sellTrigger, sellShares, keepShares, profit;
+        
+        if (gridType === 'small') {
+            keepShares = tier.keepShares;
+            sellShares = shares - keepShares;
+            sellTrigger = index === 0 ? basePrice : tiers[index - 1].buyPrice;
+            profit = (sellTrigger - buyPrice) * sellShares;
+        } else {
+            sellShares = shares;
+            keepShares = '-';
+            sellTrigger = index === 0 ? basePrice : tiers[index - 1].buyPrice;
+            profit = (sellTrigger - buyPrice) * shares;
+        }
+        
         const row = document.createElement('tr');
+        if (isOverridden) row.classList.add('overridden');
+        
         row.innerHTML = `
-            <td>S${tier.tier}</td>
-            <td>${tier.buyPrice.toFixed(3)}</td>
-            <td>${tier.shares}</td>
-            <td>${tier.cost.toFixed(0)}</td>
-            <td>${tier.sellTrigger.toFixed(3)}</td>
-            <td>${tier.sellShares}</td>
-            <td>${tier.keepShares}</td>
-            <td class="profit">${tier.estimatedProfit.toFixed(0)}</td>
+            <td>${gridType === 'small' ? 'S' + tier.tier : tier.tier}</td>
+            <td>${buyPrice.toFixed(3)}</td>
+            <td class="shares-cell">
+                <input type="number" 
+                       class="shares-input" 
+                       value="${shares}" 
+                       step="100"
+                       min="100"
+                       data-grid="${gridType}"
+                       data-index="${index}"
+                       data-original="${tier.shares}"
+                       onchange="handleSharesChange(this)">
+            </td>
+            <td>${cost.toFixed(0)}</td>
+            <td>${sellTrigger.toFixed(3)}</td>
+            <td>${sellShares}</td>
+            <td>${keepShares}</td>
+            <td class="profit">${profit.toFixed(0)}</td>
+            <td>
+                ${isOverridden ? `<button class="btn-reset" onclick="resetTier('${gridType}', ${index})">重置</button>` : ''}
+            </td>
         `;
-        smallTable.appendChild(row);
+        
+        tableBody.appendChild(row);
+    });
+}
+
+/**
+ * 处理股数手动修改
+ */
+function handleSharesChange(input) {
+    const gridType = input.dataset.grid;
+    const index = parseInt(input.dataset.index);
+    const originalShares = parseInt(input.dataset.original);
+    const newShares = parseInt(input.value);
+    
+    if (isNaN(newShares) || newShares < 100) {
+        alert('股数必须大于等于100');
+        input.value = originalShares;
+        return;
+    }
+    
+    // 向上取整到100的倍数
+    const roundedShares = Math.ceil(newShares / 100) * 100;
+    input.value = roundedShares;
+    
+    if (roundedShares === originalShares) {
+        // 恢复自动计算
+        delete manualOverrides[`${gridType}_${index}`];
+    } else {
+        // 记录覆盖
+        manualOverrides[`${gridType}_${index}`] = roundedShares;
+    }
+    
+    // 重新渲染并更新汇总
+    displayResults(currentResult);
+}
+
+/**
+ * 重置单档为自动计算
+ */
+function resetTier(gridType, index) {
+    delete manualOverrides[`${gridType}_${index}`];
+    displayResults(currentResult);
+}
+
+/**
+ * 更新汇总数据
+ */
+function updateSummary() {
+    if (!currentResult) return;
+    
+    // 计算实际投入（考虑手动覆盖）
+    let smallTotal = 0, mediumTotal = 0, largeTotal = 0;
+    
+    currentResult.grids.small.forEach((tier, i) => {
+        const key = `small_${i}`;
+        const shares = manualOverrides.hasOwnProperty(key) ? manualOverrides[key] : tier.shares;
+        smallTotal += tier.buyPrice * shares;
     });
     
-    // 中网表格
-    const mediumTable = document.getElementById('mediumGridTable');
-    mediumTable.innerHTML = '';
-    result.grids.medium.forEach(tier => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${tier.tier}</td>
-            <td>${tier.buyPrice.toFixed(3)}</td>
-            <td>${tier.shares}</td>
-            <td>${tier.cost.toFixed(0)}</td>
-            <td>${tier.sellTrigger.toFixed(3)}</td>
-            <td>-</td>
-            <td>-</td>
-            <td class="profit">${tier.estimatedProfit.toFixed(0)}</td>
-        `;
-        mediumTable.appendChild(row);
+    currentResult.grids.medium.forEach((tier, i) => {
+        const key = `medium_${i}`;
+        const shares = manualOverrides.hasOwnProperty(key) ? manualOverrides[key] : tier.shares;
+        mediumTotal += tier.buyPrice * shares;
     });
     
-    // 大网表格
-    const largeTable = document.getElementById('largeGridTable');
-    largeTable.innerHTML = '';
-    result.grids.large.forEach(tier => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${tier.tier}</td>
-            <td>${tier.buyPrice.toFixed(3)}</td>
-            <td>${tier.shares}</td>
-            <td>${tier.cost.toFixed(0)}</td>
-            <td>${tier.sellTrigger.toFixed(3)}</td>
-            <td>-</td>
-            <td>-</td>
-            <td class="profit">${tier.estimatedProfit.toFixed(0)}</td>
-        `;
-        largeTable.appendChild(row);
+    currentResult.grids.large.forEach((tier, i) => {
+        const key = `large_${i}`;
+        const shares = manualOverrides.hasOwnProperty(key) ? manualOverrides[key] : tier.shares;
+        largeTotal += tier.buyPrice * shares;
     });
+    
+    const total = smallTotal + mediumTotal + largeTotal;
+    const reserve = currentResult.totalBudget - total;
+    const reservePct = reserve / currentResult.totalBudget;
     
     // 资金分配
-    document.getElementById('capitalSmall').textContent = result.capitalAllocation.small.toFixed(0);
-    document.getElementById('capitalMedium').textContent = result.capitalAllocation.medium.toFixed(0);
-    document.getElementById('capitalLarge').textContent = result.capitalAllocation.large.toFixed(0);
-    document.getElementById('capitalTotal').textContent = result.capitalAllocation.total.toFixed(0);
-    document.getElementById('capitalReserve').textContent = result.stressTest.reserve.toFixed(0);
+    document.getElementById('capitalSmall').textContent = smallTotal.toFixed(0);
+    document.getElementById('capitalMedium').textContent = mediumTotal.toFixed(0);
+    document.getElementById('capitalLarge').textContent = largeTotal.toFixed(0);
+    document.getElementById('capitalTotal').textContent = total.toFixed(0);
+    document.getElementById('capitalReserve').textContent = reserve.toFixed(0);
     
     // 压力测试
-    document.getElementById('stressSmall').textContent = result.stressTest.smallScenario.pct + '%';
-    document.getElementById('stressMedium').textContent = result.stressTest.mediumScenario.pct + '%';
-    document.getElementById('stressWorst').textContent = result.stressTest.worstScenario.pct + '%';
-    document.getElementById('stressReserve').textContent = result.stressTest.reservePct + '%';
-    document.getElementById('stressPass').textContent = result.stressTest.pass ? '✅ 通过' : '⚠️ 冗余不足';
-    document.getElementById('stressPass').className = result.stressTest.pass ? 'pass' : 'fail';
+    document.getElementById('stressSmall').textContent = (smallTotal / currentResult.totalBudget * 100).toFixed(1) + '%';
+    document.getElementById('stressMedium').textContent = ((smallTotal + mediumTotal) / currentResult.totalBudget * 100).toFixed(1) + '%';
+    document.getElementById('stressWorst').textContent = (total / currentResult.totalBudget * 100).toFixed(1) + '%';
+    document.getElementById('stressReserve').textContent = (reservePct * 100).toFixed(1) + '%';
     
-    // 收益测算
-    document.getElementById('returnTrading').textContent = result.returnEstimate.tradingProfit.toFixed(0);
-    document.getElementById('returnKeep').textContent = result.returnEstimate.keepShares;
-    document.getElementById('returnUnrealized').textContent = result.returnEstimate.unrealized.toFixed(0);
-    document.getElementById('returnTotal').textContent = result.returnEstimate.totalReturn.toFixed(0);
-    document.getElementById('returnROI').textContent = result.returnEstimate.roiPct + '%';
+    const pass = reservePct >= 0.10 && reservePct <= 0.30;
+    document.getElementById('stressPass').textContent = pass ? '✅ 通过' : '⚠️ 冗余不足';
+    document.getElementById('stressPass').className = pass ? 'pass' : 'fail';
     
-    // 绘制饼图
-    drawPieChart(result.capitalAllocation);
+    // 重新计算收益
+    const returns = calculateReturnsWithOverrides(currentResult);
+    document.getElementById('returnTrading').textContent = returns.tradingProfit.toFixed(0);
+    document.getElementById('returnKeep').textContent = returns.keepShares;
+    document.getElementById('returnUnrealized').textContent = returns.unrealized.toFixed(0);
+    document.getElementById('returnTotal').textContent = returns.totalReturn.toFixed(0);
+    document.getElementById('returnROI').textContent = returns.roiPct + '%';
+    
+    // 重绘饼图
+    drawPieChart({ small: smallTotal, medium: mediumTotal, large: largeTotal, reserve: reserve, total: total });
+}
+
+/**
+ * 考虑手动覆盖后的收益计算
+ */
+function calculateReturnsWithOverrides(result) {
+    let tradingProfit = 0;
+    let keepShares = 0;
+    let keepCost = 0;
+    let totalCost = 0;
+    
+    // 小网收益
+    result.grids.small.forEach((tier, i) => {
+        const key = `small_${i}`;
+        const shares = manualOverrides.hasOwnProperty(key) ? manualOverrides[key] : tier.shares;
+        const buyPrice = tier.buyPrice;
+        const sellTrigger = i === 0 ? result.basePrice : result.grids.small[i - 1].buyPrice;
+        const keep = tier.keepShares;
+        const sell = shares - keep;
+        
+        tradingProfit += (sellTrigger - buyPrice) * sell;
+        keepShares += keep;
+        keepCost += buyPrice * keep;
+        totalCost += buyPrice * shares;
+    });
+    
+    // 中网收益
+    result.grids.medium.forEach((tier, i) => {
+        const key = `medium_${i}`;
+        const shares = manualOverrides.hasOwnProperty(key) ? manualOverrides[key] : tier.shares;
+        const buyPrice = tier.buyPrice;
+        const sellTrigger = i === 0 ? result.basePrice : result.grids.medium[i - 1].buyPrice;
+        
+        tradingProfit += (sellTrigger - buyPrice) * shares;
+        totalCost += buyPrice * shares;
+    });
+    
+    // 大网收益
+    result.grids.large.forEach((tier, i) => {
+        const key = `large_${i}`;
+        const shares = manualOverrides.hasOwnProperty(key) ? manualOverrides[key] : tier.shares;
+        const buyPrice = tier.buyPrice;
+        const sellTrigger = i === 0 ? result.basePrice : result.grids.large[i - 1].buyPrice;
+        
+        tradingProfit += (sellTrigger - buyPrice) * shares;
+        totalCost += buyPrice * shares;
+    });
+    
+    const avgKeepCost = keepShares > 0 ? keepCost / keepShares : 0;
+    const unrealized = keepShares * (result.basePrice - avgKeepCost);
+    
+    return {
+        tradingProfit: Math.round(tradingProfit * 100) / 100,
+        keepShares: keepShares,
+        keepCost: Math.round(avgKeepCost * 1000) / 1000,
+        unrealized: Math.round(unrealized * 100) / 100,
+        totalReturn: Math.round((tradingProfit + unrealized) * 100) / 100,
+        roiPct: Math.round((tradingProfit + unrealized) / totalCost * 1000) / 10,
+    };
 }
 
 /**
@@ -233,10 +390,8 @@ function drawPieChart(allocation) {
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 20;
     
-    // 清空
     ctx.clearRect(0, 0, width, height);
     
-    // 数据
     const data = [
         { label: '小网', value: allocation.small, color: '#4CAF50' },
         { label: '中网', value: allocation.medium, color: '#2196F3' },
@@ -245,13 +400,11 @@ function drawPieChart(allocation) {
     ];
     
     const total = allocation.total;
-    let currentAngle = -Math.PI / 2; // 从顶部开始
+    let currentAngle = -Math.PI / 2;
     
-    // 绘制饼图
     data.forEach(item => {
         const sliceAngle = (item.value / total) * 2 * Math.PI;
         
-        // 绘制扇形
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
@@ -259,12 +412,10 @@ function drawPieChart(allocation) {
         ctx.fillStyle = item.color;
         ctx.fill();
         
-        // 绘制边框
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 2;
         ctx.stroke();
         
-        // 绘制标签
         const labelAngle = currentAngle + sliceAngle / 2;
         const labelX = centerX + Math.cos(labelAngle) * (radius * 0.7);
         const labelY = centerY + Math.sin(labelAngle) * (radius * 0.7);
@@ -281,7 +432,6 @@ function drawPieChart(allocation) {
         currentAngle += sliceAngle;
     });
     
-    // 绘制图例
     const legendY = height - 20;
     let legendX = 20;
     
@@ -294,6 +444,40 @@ function drawPieChart(allocation) {
         ctx.fillText(item.label, legendX + 18, legendY);
         legendX += 60;
     });
+}
+
+/**
+ * 导出为CSV
+ */
+function exportToCSV() {
+    const symbol = document.getElementById('resSymbol').textContent;
+    if (!symbol) {
+        alert('请先执行计算');
+        return;
+    }
+    
+    let csv = '档位,买入价,股数,金额,卖出触发,出股数,留利股,单笔利润\n';
+    
+    document.querySelectorAll('#smallGridTable tr').forEach(row => {
+        const cells = row.querySelectorAll('td');
+        csv += `小网${cells[0].textContent},${cells[1].textContent},${cells[2].querySelector('input')?.value || cells[2].textContent},${cells[3].textContent},${cells[4].textContent},${cells[5].textContent},${cells[6].textContent},${cells[7].textContent}\n`;
+    });
+    
+    document.querySelectorAll('#mediumGridTable tr').forEach(row => {
+        const cells = row.querySelectorAll('td');
+        csv += `中网${cells[0].textContent},${cells[1].textContent},${cells[2].querySelector('input')?.value || cells[2].textContent},${cells[3].textContent},${cells[4].textContent},${cells[5].textContent},${cells[6].textContent},${cells[7].textContent}\n`;
+    });
+    
+    document.querySelectorAll('#largeGridTable tr').forEach(row => {
+        const cells = row.querySelectorAll('td');
+        csv += `大网${cells[0].textContent},${cells[1].textContent},${cells[2].querySelector('input')?.value || cells[2].textContent},${cells[3].textContent},${cells[4].textContent},${cells[5].textContent},${cells[6].textContent},${cells[7].textContent}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${symbol}_grid_plan.csv`;
+    link.click();
 }
 
 /**
@@ -328,31 +512,34 @@ function exportToMarkdown() {
     md += `- 总投入: ${document.getElementById('capitalTotal').textContent}元\n`;
     md += `- 冗余资金: ${document.getElementById('capitalReserve').textContent}元\n\n`;
     
-    md += `## 小网策略 (${document.getElementById('smallGridCount').textContent || 11}档)\n\n`;
+    md += `## 小网策略\n\n`;
     md += `| 档位 | 买入价 | 股数 | 金额 | 卖出触发 | 出股数 | 留利股 | 单笔利润 |\n`;
     md += `|------|--------|------|------|----------|--------|--------|----------|\n`;
     
     document.querySelectorAll('#smallGridTable tr').forEach(row => {
         const cells = row.querySelectorAll('td');
-        md += `| S${cells[0].textContent} | ${cells[1].textContent} | ${cells[2].textContent} | ${cells[3].textContent} | ${cells[4].textContent} | ${cells[5].textContent} | ${cells[6].textContent} | ${cells[7].textContent} |\n`;
+        const shares = cells[2].querySelector('input')?.value || cells[2].textContent;
+        md += `| S${cells[0].textContent} | ${cells[1].textContent} | ${shares} | ${cells[3].textContent} | ${cells[4].textContent} | ${cells[5].textContent} | ${cells[6].textContent} | ${cells[7].textContent} |\n`;
     });
     
-    md += `\n## 中网策略 (3档)\n\n`;
+    md += `\n## 中网策略\n\n`;
     md += `| 档位 | 买入价 | 股数 | 金额 | 卖出触发 | 单笔利润 |\n`;
     md += `|------|--------|------|------|----------|----------|\n`;
     
     document.querySelectorAll('#mediumGridTable tr').forEach(row => {
         const cells = row.querySelectorAll('td');
-        md += `| ${cells[0].textContent} | ${cells[1].textContent} | ${cells[2].textContent} | ${cells[3].textContent} | ${cells[4].textContent} | ${cells[7].textContent} |\n`;
+        const shares = cells[2].querySelector('input')?.value || cells[2].textContent;
+        md += `| ${cells[0].textContent} | ${cells[1].textContent} | ${shares} | ${cells[3].textContent} | ${cells[4].textContent} | ${cells[7].textContent} |\n`;
     });
     
-    md += `\n## 大网策略 (2档)\n\n`;
+    md += `\n## 大网策略\n\n`;
     md += `| 档位 | 买入价 | 股数 | 金额 | 卖出触发 | 单笔利润 |\n`;
     md += `|------|--------|------|------|----------|----------|\n`;
     
     document.querySelectorAll('#largeGridTable tr').forEach(row => {
         const cells = row.querySelectorAll('td');
-        md += `| ${cells[0].textContent} | ${cells[1].textContent} | ${cells[2].textContent} | ${cells[3].textContent} | ${cells[4].textContent} | ${cells[7].textContent} |\n`;
+        const shares = cells[2].querySelector('input')?.value || cells[2].textContent;
+        md += `| ${cells[0].textContent} | ${cells[1].textContent} | ${shares} | ${cells[3].textContent} | ${cells[4].textContent} | ${cells[7].textContent} |\n`;
     });
     
     md += `\n## 压力测试\n\n`;
@@ -371,7 +558,6 @@ function exportToMarkdown() {
     
     md += `---\n*由凝光通用网格策略框架生成*\n`;
     
-    // 下载
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

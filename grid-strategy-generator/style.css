@@ -205,7 +205,7 @@ header h1 {
     color: var(--text);
 }
 
-/* Grid Tables */
+/* 网格表格 */
 .grid-tables {
     margin-top: 30px;
 }
@@ -214,9 +214,20 @@ header h1 {
     margin-bottom: 25px;
 }
 
-.grid-section h3 {
+.grid-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 12px;
+}
+
+.grid-header h3 {
     color: var(--primary);
+}
+
+.edit-hint {
+    font-size: 0.85em;
+    color: var(--text-light);
 }
 
 .grid-table {
@@ -249,6 +260,48 @@ header h1 {
 
 .grid-table tr:hover {
     background: #f5f5f5;
+}
+
+/* 手动覆盖样式 */
+.shares-cell {
+    padding: 4px !important;
+}
+
+.shares-input {
+    width: 80px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    text-align: right;
+    font-size: 0.95em;
+}
+
+.shares-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.overridden {
+    background: #fff3e0 !important;
+}
+
+.overridden .shares-input {
+    border-color: var(--warning);
+    background: #fff8e1;
+}
+
+.btn-reset {
+    padding: 4px 10px;
+    background: var(--warning);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+
+.btn-reset:hover {
+    background: #f57c00;
 }
 
 .profit {
