@@ -185,6 +185,7 @@ instances > agents > roles > common
 
 ## 文档
 
+- [Agent 通讯录](AGENTS.md) — 所有 Agent 的名称、角色、职能、宿主机一览，方便跨 Agent 协作
 - [Agent 工作流指南](docs/guides/agent-workflow-guide.md) — 通用工作流 + 按职能执行方式
 - [Coding Agent Superpowers 安装](docs/guides/install-superpowers.md) — Coding Agent 的 Superpowers 详细安装
 
