@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETF网格策略生成器 - 凝光策略助手</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ETF网格策略生成器</h1>
+            <p class="subtitle">基于凝光通用网格策略框架 v1.0</p>
+        </header>
+        
+        <section class="input-section">
+            <h2>参数输入</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="symbol">ETF代码</label>
+                    <input type="text" id="symbol" placeholder="如: 512000.SH">
+                    <span id="etfName" class="etf-name"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="currentPrice">基准价（元）</label>
+                    <input type="number" id="currentPrice" step="0.001" placeholder="如: 0.514">
+                </div>
+                
+                <div class="form-group">
+                    <label for="totalBudget">总预算（元）</label>
+                    <input type="number" id="totalBudget" step="100" placeholder="如: 20000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="existingShares">持仓股数</label>
+                    <input type="number" id="existingShares" step="100" placeholder="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="existingCost">持仓成本（元）</label>
+                    <input type="number" id="existingCost" step="0.001" placeholder="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="permanentShares">永持股数</label>
+                    <input type="number" id="permanentShares" step="100" placeholder="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="volatility">波动等级</label>
+                    <select id="volatility" onchange="showVolatilityDesc()">
+                        <option value="auto">自动检测</option>
+                        <option value="low">低波动</option>
+                        <option value="medium">中波动</option>
+                        <option value="high">高波动</option>
+                    </select>
+                    <span id="volatilityDesc" class="desc"></span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="largeGridDepth">大网深度</label>
+                    <select id="largeGridDepth">
+                        <option value="auto">自动</option>
+                        <option value="0.30">30%</option>
+                        <option value="0.25">25%</option>
+                        <option value="0.20">20%</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button id="calculateBtn" class="btn-primary">生成策略</button>
+                <button id="exportBtn" class="btn-secondary">导出CSV</button>
+            </div>
+        </section>
+        
+        <section id="results" class="results-section" style="display:none;">
+            <h2>策略结果</h2>
+            
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>基本信息</h3>
+                    <div class="info-grid">
+                        <div><span>ETF:</span> <strong id="resSymbol"></strong></div>
+                        <div><span>基准价:</span> <strong id="resBasePrice"></strong></div>
+                        <div><span>总预算:</span> <strong id="resBudget"></strong></div>
+                        <div><span>波动等级:</span> <strong id="resVolatility"></strong></div>
+                        <div><span>大网深度:</span> <strong id="resDepth"></strong></div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>资金分配</h3>
+                    <div class="info-grid">
+                        <div><span>小网:</span> <strong id="capitalSmall"></strong></div>
+                        <div><span>中网:</span> <strong id="capitalMedium"></strong></div>
+                        <div><span>大网:</span> <strong id="capitalLarge"></strong></div>
+                        <div><span>总投入:</span> <strong id="capitalTotal"></strong></div>
+                        <div><span>冗余资金:</span> <strong id="capitalReserve"></strong></div>
+                    </div>
+                    <canvas id="pieChart" width="300" height="200"></canvas>
+                </div>
+                
+                <div class="card">
+                    <h3>压力测试</h3>
+                    <div class="info-grid">
+                        <div><span>小网触发:</span> <strong id="stressSmall"></strong></div>
+                        <div><span>中网触发:</span> <strong id="stressMedium"></strong></div>
+                        <div><span>大网触发:</span> <strong id="stressWorst"></strong></div>
+                        <div><span>冗余比例:</span> <strong id="stressReserve"></strong></div>
+                        <div><span>测试结果:</span> <strong id="stressPass"></strong></div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>收益测算（全网触发再反弹）</h3>
+                    <div class="info-grid">
+                        <div><span>交易利润:</span> <strong id="returnTrading"></strong></div>
+                        <div><span>留利股数:</span> <strong id="returnKeep"></strong></div>
+                        <div><span>留利浮盈:</span> <strong id="returnUnrealized"></strong></div>
+                        <div><span>总回报:</span> <strong id="returnTotal"></strong></div>
+                        <div><span>收益率:</span> <strong id="returnROI"></strong></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid-tables">
+                <div class="grid-section">
+                    <h3>小网策略（<span id="smallGridCount"></span>档）</h3>
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>档位</th>
+                                <th>买入价</th>
+                                <th>股数</th>
+                                <th>金额</th>
+                                <th>卖出触发</th>
+                                <th>出股数</th>
+                                <th>留利股</th>
+                                <th>单笔利润</th>
+                            </tr>
+                        </thead>
+                        <tbody id="smallGridTable"></tbody>
+                    </table>
+                </div>
+                
+                <div class="grid-section">
+                    <h3>中网策略（3档）</h3>
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>档位</th>
+                                <th>买入价</th>
+                                <th>股数</th>
+                                <th>金额</th>
+                                <th>卖出触发</th>
+                                <th>出股数</th>
+                                <th>留利股</th>
+                                <th>单笔利润</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mediumGridTable"></tbody>
+                    </table>
+                </div>
+                
+                <div class="grid-section">
+                    <h3>大网策略（2档）</h3>
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>档位</th>
+                                <th>买入价</th>
+                                <th>股数</th>
+                                <th>金额</th>
+                                <th>卖出触发</th>
+                                <th>出股数</th>
+                                <th>留利股</th>
+                                <th>单笔利润</th>
+                            </tr>
+                        </thead>
+                        <tbody id="largeGridTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        
+        <footer>
+            <p>凝光通用网格策略框架 v1.0 | 仅供学习交流，不构成投资建议</p>
+        </footer>
+    </div>
+    
+    <script src="grid-calculator.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
